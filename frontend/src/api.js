@@ -22,6 +22,9 @@ export const api = {
   总览: () => req("/总览"),
   门店: () => req("/门店"),
   挂牌列表: (q = "") => req(`/挂牌${q}`),
+  待取列表: (q = "") => req(`/待取${q}`),
+  残留列表: (q = "") => req(`/残留${q}`),
+  件数守恒: () => req("/核对/件数守恒"),
   挂牌详情: (no) => req(`/挂牌/${encodeURIComponent(no)}`),
   开票: (body) => req("/挂牌", { method: "POST", body: JSON.stringify(body) }),
   推进: (no, body) =>

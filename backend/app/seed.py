@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 
-from app.db import connect, init_db
+from app.db import IN_FLIGHT_STATUSES, connect, init_db
 
 
 def seed_if_empty() -> None:
@@ -70,6 +70,26 @@ def seed_if_empty() -> None:
                        VALUES (?,?,?,?,?,?)""",
                     (ticket_no, "待取", "已取", "开店员", opened, "种子取衣"),
                 )
+                # 件级事实与票态保持一致：已取票的在册件全部取走。
+                conn.execute(
+                    "UPDATE ticket_items SET picked_qty=qty WHERE ticket_no=?",
+                    (ticket_no,),
+                )
+                cur = conn.execute(
+                    """INSERT INTO pickup_receipts
+                       (ticket_no, receipt_no, pickup_code, picked_at, operator, partial, note)
+                       VALUES (?,?,?,?,?,0,?)""",
+                    (ticket_no, f"{ticket_no}-回执01", code, opened, "开店员", "种子整票取齐"),
+                )
+                for item in conn.execute(
+                    "SELECT id, qty FROM ticket_items WHERE ticket_no=?", (ticket_no,)
+                ).fetchall():
+                    conn.execute(
+                        """INSERT INTO pickup_lines
+                           (receipt_id, ticket_no, item_id, qty, picked_at)
+                           VALUES (?,?,?,?,?)""",
+                        (cur.lastrowid, ticket_no, item["id"], item["qty"], opened),
+                    )
 
         conn.execute(
             "INSERT INTO day_gates(day, sealed, sealed_at, note) VALUES (?,?,?,?)",
@@ -84,8 +104,10 @@ def seed_if_empty() -> None:
             (opened,),
         )
         # refresh watermark
+        placeholders = ",".join("?" for _ in IN_FLIGHT_STATUSES)
         openish = conn.execute(
-            "SELECT COUNT(*) AS c FROM hang_tickets WHERE status NOT IN ('已取','丢失隔离')"
+            f"SELECT COUNT(*) AS c FROM hang_tickets WHERE status IN ({placeholders})",
+            IN_FLIGHT_STATUSES,
         ).fetchone()["c"]
         conn.execute(
             "UPDATE watermarks SET value=?, updated_at=? WHERE key='在途票'",

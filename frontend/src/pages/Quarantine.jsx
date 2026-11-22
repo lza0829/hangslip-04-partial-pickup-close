@@ -8,7 +8,7 @@ export default function Quarantine() {
 
   async function load() {
     const [a, b] = await Promise.all([
-      api.挂牌列表("?status=" + encodeURIComponent("待取")),
+      api.待取列表(),
       api.隔离列表(),
     ]);
     setReady(a);

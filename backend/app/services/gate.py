@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from app.db import connect
+from app.db import IN_FLIGHT_STATUSES, connect
 
 
 def today_str() -> str:
@@ -47,8 +47,10 @@ def seal_day(day: str | None = None, note: str = "") -> dict:
 
 
 def refresh_in_flight(conn) -> int:
+    placeholders = ",".join("?" for _ in IN_FLIGHT_STATUSES)
     n = conn.execute(
-        "SELECT COUNT(*) AS c FROM hang_tickets WHERE status NOT IN ('已取','丢失隔离')"
+        f"SELECT COUNT(*) AS c FROM hang_tickets WHERE status IN ({placeholders})",
+        IN_FLIGHT_STATUSES,
     ).fetchone()["c"]
     now = datetime.now().replace(microsecond=0).isoformat(sep=" ")
     conn.execute(

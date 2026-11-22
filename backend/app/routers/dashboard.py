@@ -22,6 +22,9 @@ def dashboard():
         wm = conn.execute(
             "SELECT value FROM watermarks WHERE key='在途票'"
         ).fetchone()
+        residual = conn.execute(
+            "SELECT COALESCE(SUM(qty - picked_qty), 0) AS c FROM ticket_items"
+        ).fetchone()["c"]
         return {
             "今日": day,
             "日闸": "已结案" if gate and gate["sealed"] else "开放",
@@ -31,9 +34,11 @@ def dashboard():
             "烘干": cnt("烘干"),
             "熨烫": cnt("熨烫"),
             "待取": cnt("待取"),
+            "部分已取": cnt("部分已取"),
             "已取": cnt("已取"),
             "超期隔离": cnt("超期隔离"),
             "丢失隔离": cnt("丢失隔离"),
+            "残留件数": residual,
         }
     finally:
         conn.close()
